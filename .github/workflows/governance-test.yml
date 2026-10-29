@@ -1,0 +1,27 @@
+name: AI Code Governance (test)
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: AI code governance
+        id: governance
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-risk: 'true'
+          strict-dependency-check: 'true'
+      - name: Show outputs
+        run: |
+          echo "ai-risk-score=${{ steps.governance.outputs.ai-risk-score }}"
+          echo "flagged-dependencies-count=${{ steps.governance.outputs.flagged-dependencies-count }}"
+          echo "security-findings-count=${{ steps.governance.outputs.security-findings-count }}"
