@@ -1,0 +1,35 @@
+name: 'AI Code Governance'
+description: 'Deterministic security guardrails for AI-assisted and LLM-generated pull requests: provenance heuristics, dependency verification, insecure-pattern SAST, and enforcement.'
+author: 'your-org'
+
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  github-token:
+    description: 'GitHub token used to read PR data, apply labels, and post the report comment. Needs pull-requests: write and issues: write.'
+    required: true
+  fail-on-risk:
+    description: 'Fail the check when a critical threshold is breached.'
+    required: false
+    default: 'true'
+  strict-dependency-check:
+    description: 'When true, dependencies that cannot be verified (registry error or timeout) are treated as critical. When false, only confirmed non-existent packages and typosquat matches are critical.'
+    required: false
+    default: 'true'
+  custom-rules-path:
+    description: 'Optional path (relative to the repository root) to a JSON file containing additional SAST rules.'
+    required: false
+
+outputs:
+  ai-risk-score:
+    description: 'Aggregate AI provenance risk score from 0 to 100.'
+  flagged-dependencies-count:
+    description: 'Number of newly introduced dependencies that were unverified, typosquat-suspect, or recently published.'
+  security-findings-count:
+    description: 'Number of insecure-pattern SAST findings in added lines.'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'
