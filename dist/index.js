@@ -30062,7 +30062,8 @@ exports.SAST_RULES = [
         id: 'sql-string-concatenation',
         severity: 'high',
         message: 'Unparameterized SQL: string concatenation inside a query string',
-        pattern: /["'][^"'\n]*\b(?:SELECT|INSERT|UPDATE|DELETE|WHERE)\b[^"'\n]*["']\s*\+\s*[A-Za-z_$(]/,
+        // The closing quote must match the opening one, so a query containing the other quote type still matches.
+        pattern: /(["'])(?:(?!\1)[^\n])*?\b(?:SELECT|INSERT|UPDATE|DELETE|WHERE)\b(?:(?!\1)[^\n])*?\1\s*\+\s*[A-Za-z_$(]/,
         redact: false,
     },
     {
