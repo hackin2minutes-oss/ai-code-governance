@@ -23,7 +23,7 @@ jobs:
           strict-dependency-check: 'true'
       - name: Upload findings to Code scanning
         if: always() && steps.governance.outputs.sarif-path != ''
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: ${{ steps.governance.outputs.sarif-path }}
           category: ai-code-governance
