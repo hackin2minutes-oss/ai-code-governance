@@ -10,6 +10,7 @@ import {
   parseManifest,
   renderReport,
   scanFile,
+  toSarif,
 } from '../src/index'
 
 const DAY_MS = 86_400_000
@@ -281,6 +282,32 @@ test('evaluate blocks on a critical SAST finding but not on a high one', () => {
 test('evaluate blocks when the AI score reaches the critical threshold', () => {
   assert.equal(evaluate({ score: 79, label: undefined, signals: [] }, [], []).blocked, false)
   assert.equal(evaluate({ score: 80, label: undefined, signals: [] }, [], []).blocked, true)
+})
+
+test('toSarif maps severities to levels, dedupes rules, and locates dependency findings', () => {
+  const findings = [
+    { rule: 'empty-catch-block', severity: 'high' as const, file: 'a.ts', line: 3, message: 'm', snippet: 's' },
+    { rule: 'wildcard-cors-origin', severity: 'medium' as const, file: 'b.ts', line: 7, message: 'c', snippet: 's' },
+    { rule: 'empty-catch-block', severity: 'high' as const, file: 'c.ts', line: 1, message: 'm', snippet: 's' },
+  ]
+  const dep = assessDependency(npmDep('made-up-pkg'), { status: 'missing', createdAt: undefined, error: undefined }, true, NOW)
+  const sarif = toSarif(findings, [dep]) as {
+    version: string
+    runs: {
+      tool: { driver: { rules: { id: string }[] } }
+      results: { ruleId: string; level: string; locations: { physicalLocation: { artifactLocation: { uri: string }; region: { startLine: number } } }[] }[]
+    }[]
+  }
+
+  assert.equal(sarif.version, '2.1.0')
+  const run = sarif.runs[0]
+  assert.deepEqual(run.tool.driver.rules.map(r => r.id), ['empty-catch-block', 'wildcard-cors-origin', 'dependency-risk'])
+  assert.deepEqual(run.results.map(r => r.level), ['error', 'warning', 'error', 'error'])
+  assert.deepEqual(run.results[1].locations[0].physicalLocation, {
+    artifactLocation: { uri: 'b.ts' },
+    region: { startLine: 7 },
+  })
+  assert.equal(run.results[3].locations[0].physicalLocation.artifactLocation.uri, 'package.json')
 })
 
 test('renderReport includes the marker, verdict, and escapes table pipes', () => {

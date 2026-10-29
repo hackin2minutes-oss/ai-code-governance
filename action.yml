@@ -29,6 +29,8 @@ outputs:
     description: 'Number of newly introduced dependencies that were unverified, typosquat-suspect, or recently published.'
   security-findings-count:
     description: 'Number of insecure-pattern SAST findings in added lines.'
+  sarif-path:
+    description: 'Path to a SARIF 2.1.0 file of findings. Upload it with github/codeql-action/upload-sarif to show alerts under Code scanning.'
 
 runs:
   using: 'node20'
