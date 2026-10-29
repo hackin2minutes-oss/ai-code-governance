@@ -29923,9 +29923,10 @@ function wrappy (fn, cb) {
 /***/ }),
 
 /***/ 9407:
-/***/ (function(__unused_webpack_module, exports, __nccwpck_require__) {
+/***/ (function(module, exports, __nccwpck_require__) {
 
 "use strict";
+/* module decorator */ module = __nccwpck_require__.nmd(module);
 
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
@@ -29961,10 +29962,15 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SAST_RULES = void 0;
 exports.parseAddedLines = parseAddedLines;
 exports.assessAiProvenance = assessAiProvenance;
 exports.parseManifest = parseManifest;
+exports.findTyposquatTarget = findTyposquatTarget;
+exports.assessDependency = assessDependency;
 exports.scanFile = scanFile;
+exports.evaluate = evaluate;
+exports.renderReport = renderReport;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const fs = __importStar(__nccwpck_require__(9896));
@@ -30030,7 +30036,7 @@ const POPULAR_PACKAGES = {
 // Built-in insecure-pattern rules. Keyword rules are case-sensitive on purpose:
 // SQL keywords in uppercase are the common LLM output and this avoids matching
 // ordinary identifiers such as `select(` or `update(`.
-const SAST_RULES = [
+exports.SAST_RULES = [
     {
         id: 'live-secret-literal',
         severity: 'critical',
@@ -30803,7 +30809,7 @@ async function run() {
     const ctx = await loadPullContext(octokit);
     const ai = assessAiProvenance(ctx);
     const deps = await assessDependencies(octokit, ctx, config.strictDependencyCheck);
-    const rules = [...SAST_RULES];
+    const rules = [...exports.SAST_RULES];
     if (config.customRulesPath)
         rules.push(...loadCustomRules(config.customRulesPath));
     const findings = scanPullRequest(ctx, rules);
@@ -30827,7 +30833,10 @@ async function run() {
             core.warning(message);
     }
 }
-run().catch(error => core.setFailed(error instanceof Error ? error.message : String(error)));
+// Only run when executed as the bundled action, not when imported by tests.
+if (__nccwpck_require__.c[__nccwpck_require__.s] === module) {
+    run().catch(error => core.setFailed(error instanceof Error ? error.message : String(error)));
+}
 
 
 /***/ }),
@@ -32719,8 +32728,8 @@ module.exports = parseParams
 /******/ 		}
 /******/ 		// Create a new module (and put it into the cache)
 /******/ 		var module = __webpack_module_cache__[moduleId] = {
-/******/ 			// no module.id needed
-/******/ 			// no module.loaded needed
+/******/ 			id: moduleId,
+/******/ 			loaded: false,
 /******/ 			exports: {}
 /******/ 		};
 /******/ 	
@@ -32733,21 +32742,36 @@ module.exports = parseParams
 /******/ 			if(threw) delete __webpack_module_cache__[moduleId];
 /******/ 		}
 /******/ 	
+/******/ 		// Flag the module as loaded
+/******/ 		module.loaded = true;
+/******/ 	
 /******/ 		// Return the exports of the module
 /******/ 		return module.exports;
 /******/ 	}
 /******/ 	
+/******/ 	// expose the module cache
+/******/ 	__nccwpck_require__.c = __webpack_module_cache__;
+/******/ 	
 /************************************************************************/
+/******/ 	/* webpack/runtime/node module decorator */
+/******/ 	(() => {
+/******/ 		__nccwpck_require__.nmd = (module) => {
+/******/ 			module.paths = [];
+/******/ 			if (!module.children) module.children = [];
+/******/ 			return module;
+/******/ 		};
+/******/ 	})();
+/******/ 	
 /******/ 	/* webpack/runtime/compat */
 /******/ 	
 /******/ 	if (typeof __nccwpck_require__ !== 'undefined') __nccwpck_require__.ab = __dirname + "/";
 /******/ 	
 /************************************************************************/
 /******/ 	
+/******/ 	// module cache are used so entry inlining is disabled
 /******/ 	// startup
 /******/ 	// Load entry module and return exports
-/******/ 	// This entry module is referenced by other modules so it can't be inlined
-/******/ 	var __webpack_exports__ = __nccwpck_require__(9407);
+/******/ 	var __webpack_exports__ = __nccwpck_require__(__nccwpck_require__.s = 9407);
 /******/ 	module.exports = __webpack_exports__;
 /******/ 	
 /******/ })()

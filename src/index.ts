@@ -191,7 +191,7 @@ const POPULAR_PACKAGES: Record<Ecosystem, string[]> = {
 // Built-in insecure-pattern rules. Keyword rules are case-sensitive on purpose:
 // SQL keywords in uppercase are the common LLM output and this avoids matching
 // ordinary identifiers such as `select(` or `update(`.
-const SAST_RULES: SastRule[] = [
+export const SAST_RULES: SastRule[] = [
   {
     id: 'live-secret-literal',
     severity: 'critical',
@@ -587,7 +587,7 @@ function normalizeName(name: string): string {
 }
 
 /** Returns the popular package a name is suspiciously close to, or undefined. */
-function findTyposquatTarget(ecosystem: Ecosystem, name: string): string | undefined {
+export function findTyposquatTarget(ecosystem: Ecosystem, name: string): string | undefined {
   const candidate = name.toLowerCase()
   const popular = POPULAR_PACKAGES[ecosystem]
   if (popular.includes(candidate)) return undefined
@@ -680,7 +680,7 @@ async function lookupRegistry(dep: Dependency): Promise<RegistryResult> {
   }
 }
 
-function assessDependency(dep: Dependency, registry: RegistryResult, strict: boolean, now: number): DependencyAssessment {
+export function assessDependency(dep: Dependency, registry: RegistryResult, strict: boolean, now: number): DependencyAssessment {
   const notes: string[] = []
   let severity: Severity | undefined
   const typosquatOf = findTyposquatTarget(dep.ecosystem, dep.name)
@@ -872,7 +872,7 @@ function scanPullRequest(ctx: PullContext, rules: SastRule[]): SastFinding[] {
 // Module 4: Enforcement & reporting
 // ---------------------------------------------------------------------------
 
-function evaluate(ai: AiAssessment, deps: DependencyAssessment[], findings: SastFinding[]): Verdict {
+export function evaluate(ai: AiAssessment, deps: DependencyAssessment[], findings: SastFinding[]): Verdict {
   const reasons: string[] = []
 
   const criticalDeps = deps.filter(dep => dep.severity === 'critical')
@@ -896,7 +896,7 @@ function escapeCell(value: string): string {
   return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').replace(/`/g, "'")
 }
 
-function renderReport(
+export function renderReport(
   ai: AiAssessment,
   deps: DependencyAssessment[],
   findings: SastFinding[],
@@ -1039,4 +1039,7 @@ async function run(): Promise<void> {
   }
 }
 
-run().catch(error => core.setFailed(error instanceof Error ? error.message : String(error)))
+// Only run when executed as the bundled action, not when imported by tests.
+if (require.main === module) {
+  run().catch(error => core.setFailed(error instanceof Error ? error.message : String(error)))
+}
