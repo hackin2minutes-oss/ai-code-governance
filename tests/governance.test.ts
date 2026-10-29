@@ -194,6 +194,7 @@ test('scanFile flags placeholder credentials such as sk-test and Bearer test_tok
 test('scanFile flags interpolated and concatenated SQL but not parameterized queries', () => {
   assert.ok(ruleIds(['const q = `SELECT * FROM t WHERE id = ${id}`']).includes('sql-template-interpolation'))
   assert.ok(ruleIds(['const q = "SELECT * FROM t WHERE id = " + id']).includes('sql-string-concatenation'))
+  assert.ok(ruleIds(['const q = "SELECT * FROM users WHERE name = \'" + name + "\'"']).includes('sql-string-concatenation'))
   assert.ok(ruleIds(['cur.execute("SELECT * FROM t WHERE id = %s" % uid)']).includes('sql-string-format'))
   assert.deepEqual(ruleIds(['db.query("SELECT * FROM t WHERE id = ?", [id])']), [])
 })
