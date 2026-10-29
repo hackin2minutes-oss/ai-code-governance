@@ -1,6 +1,7 @@
 import * as core from '@actions/core'
 import * as github from '@actions/github'
 import * as fs from 'fs'
+import * as os from 'os'
 import * as path from 'path'
 
 /*
@@ -893,6 +894,66 @@ export function evaluate(ai: AiAssessment, deps: DependencyAssessment[], finding
   return { blocked: reasons.length > 0, reasons }
 }
 
+const SARIF_LEVEL: Record<Severity, 'error' | 'warning' | 'note'> = {
+  critical: 'error',
+  high: 'error',
+  medium: 'warning',
+  low: 'note',
+}
+
+function sarifLocation(file: string, line: number) {
+  return { physicalLocation: { artifactLocation: { uri: file }, region: { startLine: line } } }
+}
+
+/**
+ * Builds a SARIF 2.1.0 log so findings appear under Code scanning alerts.
+ * Dependency findings are attached to the manifest file, since registry checks have no source line.
+ */
+export function toSarif(findings: SastFinding[], deps: DependencyAssessment[]): object {
+  const rules = new Map<string, object>()
+  const results: object[] = []
+
+  for (const finding of findings) {
+    rules.set(finding.rule, {
+      id: finding.rule,
+      shortDescription: { text: finding.message },
+      defaultConfiguration: { level: SARIF_LEVEL[finding.severity] },
+    })
+    results.push({
+      ruleId: finding.rule,
+      level: SARIF_LEVEL[finding.severity],
+      message: { text: finding.message },
+      locations: [sarifLocation(finding.file, finding.line)],
+    })
+  }
+
+  for (const dep of deps) {
+    if (dep.severity === undefined) continue
+    rules.set('dependency-risk', {
+      id: 'dependency-risk',
+      shortDescription: { text: 'New dependency failed registry verification' },
+      defaultConfiguration: { level: 'warning' },
+    })
+    results.push({
+      ruleId: 'dependency-risk',
+      level: SARIF_LEVEL[dep.severity],
+      message: { text: `${dep.dependency.name} (${dep.dependency.ecosystem}): ${dep.label}. ${dep.notes.join('; ')}` },
+      locations: [sarifLocation(dep.dependency.manifest, 1)],
+    })
+  }
+
+  return {
+    version: '2.1.0',
+    $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+    runs: [
+      {
+        tool: { driver: { name: 'ai-code-governance', rules: [...rules.values()] } },
+        results,
+      },
+    ],
+  }
+}
+
 function escapeCell(value: string): string {
   return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').replace(/`/g, "'")
 }
@@ -1023,6 +1084,10 @@ async function run(): Promise<void> {
   core.setOutput('ai-risk-score', String(ai.score))
   core.setOutput('flagged-dependencies-count', String(flaggedCount))
   core.setOutput('security-findings-count', String(findings.length))
+
+  const sarifPath = path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'ai-code-governance.sarif')
+  fs.writeFileSync(sarifPath, JSON.stringify(toSarif(findings, deps), null, 2))
+  core.setOutput('sarif-path', sarifPath)
 
   const report = renderReport(ai, deps, findings, verdict)
   await bestEffort('Applying AI label', () => applyAiLabel(octokit, ctx, ai.label))

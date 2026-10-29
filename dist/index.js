@@ -29970,10 +29970,12 @@ exports.findTyposquatTarget = findTyposquatTarget;
 exports.assessDependency = assessDependency;
 exports.scanFile = scanFile;
 exports.evaluate = evaluate;
+exports.toSarif = toSarif;
 exports.renderReport = renderReport;
 const core = __importStar(__nccwpck_require__(7484));
 const github = __importStar(__nccwpck_require__(3228));
 const fs = __importStar(__nccwpck_require__(9896));
+const os = __importStar(__nccwpck_require__(857));
 const path = __importStar(__nccwpck_require__(6928));
 // ---------------------------------------------------------------------------
 // Constants
@@ -30701,6 +30703,61 @@ function evaluate(ai, deps, findings) {
     }
     return { blocked: reasons.length > 0, reasons };
 }
+const SARIF_LEVEL = {
+    critical: 'error',
+    high: 'error',
+    medium: 'warning',
+    low: 'note',
+};
+function sarifLocation(file, line) {
+    return { physicalLocation: { artifactLocation: { uri: file }, region: { startLine: line } } };
+}
+/**
+ * Builds a SARIF 2.1.0 log so findings appear under Code scanning alerts.
+ * Dependency findings are attached to the manifest file, since registry checks have no source line.
+ */
+function toSarif(findings, deps) {
+    const rules = new Map();
+    const results = [];
+    for (const finding of findings) {
+        rules.set(finding.rule, {
+            id: finding.rule,
+            shortDescription: { text: finding.message },
+            defaultConfiguration: { level: SARIF_LEVEL[finding.severity] },
+        });
+        results.push({
+            ruleId: finding.rule,
+            level: SARIF_LEVEL[finding.severity],
+            message: { text: finding.message },
+            locations: [sarifLocation(finding.file, finding.line)],
+        });
+    }
+    for (const dep of deps) {
+        if (dep.severity === undefined)
+            continue;
+        rules.set('dependency-risk', {
+            id: 'dependency-risk',
+            shortDescription: { text: 'New dependency failed registry verification' },
+            defaultConfiguration: { level: 'warning' },
+        });
+        results.push({
+            ruleId: 'dependency-risk',
+            level: SARIF_LEVEL[dep.severity],
+            message: { text: `${dep.dependency.name} (${dep.dependency.ecosystem}): ${dep.label}. ${dep.notes.join('; ')}` },
+            locations: [sarifLocation(dep.dependency.manifest, 1)],
+        });
+    }
+    return {
+        version: '2.1.0',
+        $schema: 'https://json.schemastore.org/sarif-2.1.0.json',
+        runs: [
+            {
+                tool: { driver: { name: 'ai-code-governance', rules: [...rules.values()] } },
+                results,
+            },
+        ],
+    };
+}
 function escapeCell(value) {
     return value.replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').replace(/`/g, "'");
 }
@@ -30819,6 +30876,9 @@ async function run() {
     core.setOutput('ai-risk-score', String(ai.score));
     core.setOutput('flagged-dependencies-count', String(flaggedCount));
     core.setOutput('security-findings-count', String(findings.length));
+    const sarifPath = path.join(process.env.RUNNER_TEMP ?? os.tmpdir(), 'ai-code-governance.sarif');
+    fs.writeFileSync(sarifPath, JSON.stringify(toSarif(findings, deps), null, 2));
+    core.setOutput('sarif-path', sarifPath);
     const report = renderReport(ai, deps, findings, verdict);
     await bestEffort('Applying AI label', () => applyAiLabel(octokit, ctx, ai.label));
     await bestEffort('Posting report comment', () => upsertReportComment(octokit, ctx, report));
