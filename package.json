@@ -15,7 +15,9 @@
   "license": "MIT",
   "dependencies": {
     "@actions/core": "^1.11.1",
-    "@actions/github": "^6.0.1"
+    "@actions/github": "^6.0.1",
+    "lodsh": "^4.17.21",
+    "made-up-pkg-xyz-2026": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.0",
