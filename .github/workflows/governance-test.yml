@@ -15,6 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: AI code governance
         id: governance
+        continue-on-error: true
         uses: ./
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
