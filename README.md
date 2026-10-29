@@ -24,6 +24,7 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  security-events: write
 
 jobs:
   governance:
@@ -39,7 +40,15 @@ jobs:
           strict-dependency-check: 'true'
           custom-rules-path: '.github/governance/rules.json'
 
+      - name: Upload findings to Code scanning
+        if: always() && steps.governance.outputs.sarif-path != ''
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: ${{ steps.governance.outputs.sarif-path }}
+          category: ai-code-governance
+
       - name: Show outputs
+        if: always()
         run: |
           echo "AI risk score: ${{ steps.governance.outputs.ai-risk-score }}"
           echo "Flagged dependencies: ${{ steps.governance.outputs.flagged-dependencies-count }}"
@@ -47,6 +56,8 @@ jobs:
 ```
 
 The action must run on a `pull_request` event. It reads PR data through the API, so `actions/checkout` is only needed if you use `custom-rules-path`.
+
+**Code scanning:** the upload step puts findings under the repository's Security → Code scanning tab. It needs `security-events: write`. The `if: always()` guards keep the upload and output steps running when the check blocks the PR, so the check still fails. Pull requests from forks can't write code scanning results, so the upload fails there.
 
 ## Inputs
 
